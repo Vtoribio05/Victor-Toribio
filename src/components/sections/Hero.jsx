@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, Play, CarFront, ScanLine, AlertCircle } from 'lucide-react';
 import { content } from '../../data/autoAuditContent';
 
