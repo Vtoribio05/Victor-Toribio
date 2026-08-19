@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UploadCloud, FileText, Loader2, CheckCircle2, AlertTriangle, ScanLine, Calculator, ChevronRight, X } from 'lucide-react';
+import { UploadCloud, FileText, Loader2, CheckCircle2, AlertTriangle, ScanLine, Calculator, X } from 'lucide-react';
 
 const aiProcessingSteps = [
   { icon: ScanLine, text: "Escaneando documento con Visión IA..." },
@@ -9,22 +9,13 @@ const aiProcessingSteps = [
   { icon: CheckCircle2, text: "Generando reporte de auditoría..." }
 ];
 
-const mockExtractedData = {
-  brand: "Toyota (detectado)",
-  items: [
-    { name: "Juego de Pastillas Delanteras", original: 180, fair: 95, risk: "Alto" },
-    { name: "Rectificado de Discos", original: 60, fair: 50, risk: "Bajo" },
-    { name: "Líquido de Frenos DOT 4", original: 45, fair: 20, risk: "Alto" },
-    { name: "Mano de Obra (3 hrs)", original: 150, fair: 100, risk: "Medio" },
-    { name: "Limpieza de cuerpo aceleración", original: 80, fair: 0, risk: "Innecesario" } // Found as redundant
-  ]
-};
-
 const AuditSimulator = () => {
   const [file, setFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [status, setStatus] = useState('idle'); // idle, processing, complete
+  const [status, setStatus] = useState('idle'); // idle, processing, complete, error
   const [step, setStep] = useState(0);
+  const [extractedData, setExtractedData] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
   const fileInputRef = useRef(null);
 
   const handleDragOver = (e) => {
@@ -50,31 +41,64 @@ const AuditSimulator = () => {
     }
   };
 
-  const handleFileUpload = (uploadedFile) => {
+  const toBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+  });
+
+  const handleFileUpload = async (uploadedFile) => {
     setFile(uploadedFile);
     setStatus('processing');
     setStep(0);
+    setErrorMessage('');
 
-    let currentStep = 0;
+    // Animación visual de pasos (falsa) para UX mientras procesamos en background
     const interval = setInterval(() => {
-      currentStep++;
-      if (currentStep < aiProcessingSteps.length) {
-        setStep(currentStep);
-      } else {
-        clearInterval(interval);
-        setStatus('complete');
+      setStep(prev => prev < 3 ? prev + 1 : prev);
+    }, 2000);
+
+    try {
+      const base64Image = await toBase64(uploadedFile);
+      
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${apiUrl}/analyze-quote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imageBase64: base64Image })
+      });
+
+      if (!response.ok) {
+        throw new Error("Error en el servidor al analizar la imagen.");
       }
-    }, 1500);
+
+      const data = await response.json();
+      
+      clearInterval(interval);
+      setStep(4);
+      setExtractedData(data);
+      setStatus('complete');
+
+    } catch (error) {
+      clearInterval(interval);
+      console.error(error);
+      setErrorMessage("No se pudo analizar la imagen. Por favor intenta con una foto más clara.");
+      setStatus('error');
+    }
   };
 
   const resetSimulator = () => {
     setFile(null);
     setStatus('idle');
     setStep(0);
+    setExtractedData(null);
   };
 
-  const totalOriginal = mockExtractedData.items.reduce((acc, curr) => acc + curr.original, 0);
-  const totalFair = mockExtractedData.items.reduce((acc, curr) => acc + curr.fair, 0);
+  const totalOriginal = extractedData?.items?.reduce((acc, curr) => acc + curr.original, 0) || 0;
+  const totalFair = extractedData?.items?.reduce((acc, curr) => acc + curr.fair, 0) || 0;
   const saving = totalOriginal - totalFair;
 
   return (
@@ -115,18 +139,18 @@ const AuditSimulator = () => {
                     className="hidden" 
                     ref={fileInputRef}
                     onChange={handleFileSelect}
-                    accept="image/*,.pdf"
+                    accept="image/*"
                   />
                   <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg border border-slate-700">
                     <UploadCloud size={32} className="text-primary" />
                   </div>
                   <h3 className="text-2xl font-bold text-white mb-3">Arrastra tu cotización aquí</h3>
-                  <p className="text-slate-400 mb-8 max-w-sm mx-auto">Soporta formatos JPG, PNG y PDF hasta 5MB. Los datos se analizan de forma privada y segura.</p>
+                  <p className="text-slate-400 mb-8 max-w-sm mx-auto">Soporta formatos JPG y PNG. Los datos se analizan de forma privada y segura con IA Real.</p>
                   <button 
                     onClick={() => fileInputRef.current.click()}
                     className="bg-primary hover:bg-primary-hover text-white px-8 py-3.5 rounded-xl font-bold transition-all shadow-lg shadow-primary/20"
                   >
-                    Seleccionar Archivo
+                    Seleccionar Foto
                   </button>
                 </motion.div>
               )}
@@ -149,7 +173,7 @@ const AuditSimulator = () => {
                       </div>
                     </div>
                     <h3 className="text-2xl font-bold text-white mb-2">{file?.name || "Documento cargado"}</h3>
-                    <p className="text-slate-400">Analizando documento con IA...</p>
+                    <p className="text-slate-400">Analizando documento con Inteligencia Artificial real...</p>
                   </div>
 
                   <div className="max-w-md mx-auto space-y-4">
@@ -170,8 +194,25 @@ const AuditSimulator = () => {
                 </motion.div>
               )}
 
+              {/* ERROR STAGE */}
+              {status === 'error' && (
+                <motion.div
+                  key="error"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="py-12 text-center"
+                >
+                  <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
+                  <h3 className="text-2xl font-bold text-white mb-2">Error en el análisis</h3>
+                  <p className="text-slate-400 mb-6">{errorMessage}</p>
+                  <button onClick={resetSimulator} className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-2 rounded-lg transition-colors">
+                    Intentar de nuevo
+                  </button>
+                </motion.div>
+              )}
+
               {/* STAGE 3: RESULT */}
-              {status === 'complete' && (
+              {status === 'complete' && extractedData && (
                 <motion.div
                   key="result"
                   initial={{ opacity: 0, y: 20 }}
@@ -184,7 +225,7 @@ const AuditSimulator = () => {
                         <CheckCircle2 size={12} className="text-green-500" /> IA Confianza: 98%
                       </div>
                       <h3 className="text-2xl font-bold text-white mb-1">Análisis Completado</h3>
-                      <p className="text-slate-400">{mockExtractedData.brand}</p>
+                      <p className="text-slate-400">{extractedData.brand || "Vehículo Detectado"}</p>
                     </div>
                     <button onClick={resetSimulator} className="text-slate-500 hover:text-white p-2">
                       <X size={24} />
@@ -202,14 +243,14 @@ const AuditSimulator = () => {
                     </div>
                     <div className="bg-green-500/10 rounded-xl p-4 border border-green-500/20">
                       <p className="text-xs text-green-500 uppercase font-semibold mb-1">Ahorro Detectado</p>
-                      <p className="text-2xl font-bold text-green-400">${saving}</p>
+                      <p className="text-2xl font-bold text-green-400">${saving > 0 ? saving : 0}</p>
                     </div>
                   </div>
 
                   <div>
-                    <h4 className="text-lg font-bold text-white mb-4 border-b border-slate-800 pb-2">Desglose de Ítems (Extraídos)</h4>
+                    <h4 className="text-lg font-bold text-white mb-4 border-b border-slate-800 pb-2">Desglose Extraído por IA</h4>
                     <div className="space-y-3">
-                      {mockExtractedData.items.map((item, idx) => (
+                      {extractedData.items?.map((item, idx) => (
                         <div key={idx} className={`p-4 rounded-xl border ${item.risk === 'Innecesario' ? 'bg-red-500/5 border-red-500/20' : 'bg-slate-900 border-slate-800'} flex flex-col sm:flex-row sm:items-center justify-between gap-3`}>
                           <div className="flex-1">
                             <p className="font-semibold text-white flex items-center gap-2">
@@ -220,7 +261,7 @@ const AuditSimulator = () => {
                           </div>
                           <div className="text-right">
                             {item.risk === 'Alto' && <span className="text-sm font-bold text-amber-500 flex items-center gap-1 justify-end"><AlertTriangle size={14}/> Sobreprecio ALTO</span>}
-                            {item.risk === 'Medio' && <span className="text-sm font-bold text-yellow-500">Sobreprecio MEDIO</span>}
+                            {(item.risk === 'Medio' || item.risk === 'Moderado') && <span className="text-sm font-bold text-yellow-500">Sobreprecio MEDIO</span>}
                             {item.risk === 'Bajo' && <span className="text-sm font-bold text-green-500 flex items-center gap-1 justify-end"><CheckCircle2 size={14}/> Precio Ok</span>}
                             {item.risk === 'Innecesario' && <span className="text-sm font-bold text-red-500 line-through decoration-2 decoration-red-500">${item.original}</span>}
                           </div>
@@ -229,10 +270,6 @@ const AuditSimulator = () => {
                     </div>
                   </div>
 
-                  <button className="w-full bg-white hover:bg-slate-50 text-slate-900 rounded-xl py-4 font-bold text-lg transition-all flex items-center justify-center gap-2 shadow-lg">
-                    <FileText size={20} />
-                    Descargar Reporte Completo (PDF)
-                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
