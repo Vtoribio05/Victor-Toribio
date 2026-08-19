@@ -1,10 +1,18 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronRight, Play, AlertCircle, CheckCircle2, TrendingDown } from 'lucide-react';
+import { ChevronRight, Play, CarFront, ScanLine, AlertCircle } from 'lucide-react';
 import { content } from '../../data/autoAuditContent';
 
 const Hero = () => {
   const { hero } = content;
+  const [scanPosition, setScanPosition] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setScanPosition(prev => (prev >= 100 ? 0 : prev + 2));
+    }, 50);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
@@ -62,68 +70,50 @@ const Hero = () => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="flex-1 w-full max-w-lg lg:max-w-none"
+            className="flex-1 w-full max-w-lg lg:max-w-none flex justify-center"
           >
-            <div className="glass-panel rounded-2xl p-6 relative overflow-hidden">
-              {/* Scanning Laser Animation */}
-              <div className="absolute top-0 left-0 w-full h-1 bg-secondary shadow-[0_0_15px_rgba(14,165,233,0.8)] z-50 animate-scan pointer-events-none"></div>
-
-              <div className="absolute -top-4 -right-4 bg-green-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1 z-10">
-                <TrendingDown size={14} /> Ahorro: $330 USD
-              </div>
+            <div className="relative w-full aspect-square max-w-md bg-slate-900 rounded-full flex items-center justify-center p-8 border border-slate-800 shadow-[0_0_50px_rgba(14,165,233,0.15)] overflow-hidden group">
+              {/* Radar Rings */}
+              <div className="absolute inset-0 border border-slate-800 rounded-full scale-[0.8] opacity-50"></div>
+              <div className="absolute inset-0 border border-secondary/20 rounded-full scale-[0.6] opacity-50"></div>
+              <div className="absolute inset-0 border border-primary/20 rounded-full scale-[0.4] opacity-50"></div>
               
-              <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-                <div>
-                  <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Presupuesto Original</p>
-                  <p className="text-2xl font-bold text-slate-400 line-through decoration-red-500/50 decoration-2">$850.00</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-secondary font-bold uppercase tracking-wider">Sugerido AutoAudit</p>
-                  <p className="text-3xl font-extrabold text-slate-900">$520.00</p>
-                </div>
+              {/* Holographic Car */}
+              <div className="relative z-10 text-slate-800 transition-all duration-500">
+                <CarFront size={200} strokeWidth={1} className="text-secondary drop-shadow-[0_0_20px_rgba(14,165,233,0.8)]" />
               </div>
 
-              <div className="space-y-3">
-                <div className="flex items-start justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <div className="flex gap-3">
-                    <CheckCircle2 className="text-green-500 shrink-0 mt-0.5" size={18} />
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">Pastillas de Freno (Eje Delantero)</p>
-                      <p className="text-xs text-slate-500">Precio Justo (OEM)</p>
-                    </div>
-                  </div>
-                  <span className="text-sm font-bold text-slate-700">$120.00</span>
-                </div>
-
-                <div className="flex items-start justify-between p-3 bg-red-50 rounded-xl border border-red-100">
-                  <div className="flex gap-3">
-                    <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
-                    <div>
-                      <p className="text-sm font-semibold text-red-900">Limpieza de Inyectores</p>
-                      <p className="text-xs text-red-700 font-medium">Servicio redundante / No requerido</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm font-bold text-slate-400 line-through block">$150.00</span>
-                    <span className="text-xs font-bold text-red-600 block">Eliminar</span>
-                  </div>
-                </div>
-
-                <div className="flex items-start justify-between p-3 bg-amber-50 rounded-xl border border-amber-100">
-                  <div className="flex gap-3">
-                    <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
-                    <div>
-                      <p className="text-sm font-semibold text-amber-900">Mano de Obra (4 horas)</p>
-                      <p className="text-xs text-amber-700 font-medium">Sobreprecio detectado (Mercado: 2h)</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm font-bold text-slate-400 line-through block">$180.00</span>
-                    <span className="text-sm font-bold text-amber-700 block">$90.00</span>
-                  </div>
-                </div>
+              {/* Laser Scanner */}
+              <div 
+                className="absolute left-0 w-full h-[2px] bg-secondary shadow-[0_0_15px_rgba(14,165,233,1)] z-20 transition-all duration-75"
+                style={{ top: `${scanPosition}%` }}
+              >
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-12 bg-gradient-to-b from-transparent to-secondary/20 blur-md"></div>
               </div>
-              
+
+              {/* Hotspots */}
+              <AnimatePresence>
+                {(scanPosition > 30 && scanPosition < 60) && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.5 }}
+                    className="absolute top-[35%] left-[20%] bg-red-500/20 border border-red-500 text-red-500 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md flex items-center gap-1 z-30 shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                  >
+                    <AlertCircle size={12}/> Sobreprecio: Frenos
+                  </motion.div>
+                )}
+                {(scanPosition > 60 && scanPosition < 90) && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.5 }}
+                    className="absolute bottom-[20%] right-[15%] bg-green-500/20 border border-green-500 text-green-500 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md flex items-center gap-1 z-30 shadow-[0_0_15px_rgba(34,197,94,0.5)]"
+                  >
+                    <ScanLine size={12}/> Precio Correcto
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
           

@@ -5,6 +5,7 @@ import Hero from './components/sections/Hero';
 import ProblemSolution from './components/sections/ProblemSolution';
 import Benefits from './components/sections/Benefits';
 import AuditSimulator from './components/sections/AuditSimulator';
+import TrustRanking from './components/sections/TrustRanking';
 import FAQ from './components/sections/FAQ';
 import LeadCapture from './components/sections/LeadCapture';
 
@@ -17,6 +18,7 @@ function App() {
         <ProblemSolution />
         <Benefits />
         <AuditSimulator />
+        <TrustRanking />
         <LeadCapture />
         <FAQ />
       </main>
